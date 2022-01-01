@@ -1,8 +1,39 @@
 name: My First GitHub Action
 on: [push]
 jobs:
-  print-hello-world:
+  buildApp:
     runs-on: ubuntu-latest
+    outputs:
+      text: ${{ steps.finalstep.outputs.text }}
+    env:
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRJ_ID }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - run: echo "Hello World!!!"
-      - run: echo "This is my step number 2"
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with: 
+          node-version: 14
+      - name: Install node_modules
+        run: npm install
+      - name: Build the project
+        run: npm run build
+      - name: Sets the vercel env
+        run: |
+          cd build
+          mkdir .vercel
+          cd .vercel
+          touch project.json
+          echo "{\"orgId\":\"$VERCEL_ORG_ID\",\"projectId\":\"$VERCEL_PROJECT_ID\"}" > project.json
+      - name: Deploy the project
+        run: npm run deploy
+      - name: Setup finish
+        id: finalstep
+        run: echo "::set-output name=text::I was sent by the first job"
+  testApp:
+    needs: buildApp
+    runs-on: ubuntu-latest
+    env:
+      MY_JOB_OP: ${{ needs.buildApp.outputs.text }}
+    steps:
+      - run: echo $MY_JOB_OP
